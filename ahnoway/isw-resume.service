@@ -1,0 +1,22 @@
+[Unit]
+Description=Apply ISW fan curve after resume
+# EC loses the curve across suspend.
+# suspend.target is reached only after resume.
+# This is because systemd-suspend.service doesn't return until the machine wakes.
+# isw's own unit hooks sleep.target, which is reached on the way down so it races.
+# https://github.com/systemd/systemd/issues/6364
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+# Precautionary, not measured: it is untested whether the EC needs a moment
+# after resume before it accepts writes. Kept because isw never verifies its
+# writes and exits 0 either way, so a write landing too early would fail
+# silently. Removing this is equally untested.
+# ExecStartPost logs EC dump into the journal.
+ExecStartPre=/usr/bin/sleep 2
+ExecStart=/usr/bin/isw -w 16U7EMS1
+ExecStartPost=/usr/bin/isw -p 16U7EMS1
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
